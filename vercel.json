@@ -1,8 +1,9 @@
 {
-  "rewrites": [
+  "redirects": [
     {
       "source": "/:path*",
-      "destination": "https://suivi-parcours-dt.elqorchi-abdelilah.chatgpt.site/:path*"
+      "destination": "https://suivi-parcours-dt.elqorchi-abdelilah.chatgpt.site/:path*",
+      "permanent": false
     }
   ]
 }
