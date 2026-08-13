@@ -58,6 +58,7 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [situationDrilldown, setSituationDrilldown] = useState<SituationDrilldown | null>(null);
   const [drillActionIds, setDrillActionIds] = useState<Set<string> | null>(null);
+  const [routeSummaryExpanded, setRouteSummaryExpanded] = useState(false);
   const [visibleRows, setVisibleRows] = useState(40);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [persistenceReady, setPersistenceReady] = useState(true);
@@ -92,6 +93,7 @@ export default function Home() {
   const maxResponsibility = Math.max(1, ...dashboard.responsibilities.map((item) => item.value));
   const maxComparison = Math.max(1, ...dashboard.measurementSeries.flatMap((item) => [item.anomalies, item.assignments]));
   const visibleTypes = filters.measurementType === "Tous" ? MEASUREMENT_TYPES : [filters.measurementType];
+  const visibleRouteSummary = routeSummaryExpanded ? dashboard.routeMeasurementSummary : dashboard.routeMeasurementSummary.slice(0, 12);
 
   useEffect(() => {
     function closeDrawer(event: KeyboardEvent) {
@@ -212,6 +214,13 @@ export default function Home() {
             <div className="table-scroll"><table className="matrix-table"><thead><tr><th>Responsabilité</th>{visibleTypes.map((type) => <th key={type}>{type}</th>)}<th>Total</th></tr></thead><tbody>
               {dashboard.matrix.map((row) => <tr key={row.responsibility}><td><button onClick={() => updateFilter("responsibility", row.responsibility)}>{row.responsibility}</button></td>{visibleTypes.map((type) => <td key={type}><button disabled={!row.counts[type]} onClick={() => openSituationCell(row.responsibility, type)} title={`${row.counts[type]} affectations ${row.responsibility} · ${type}. Cliquer pour voir les parcours et lignes source.`}>{row.counts[type]}</button></td>)}<td><b>{row.total}</b></td></tr>)}
             </tbody></table></div>
+          </article>
+
+          <article className="panel route-summary-panel">
+            <div className="panel-heading"><div><span className="section-kicker">Situation · synthèse détaillée</span><h2>Autoroute × type de mesure</h2></div><span className="microcopy">Cliquer une autoroute ou un type pour filtrer le dashboard</span></div>
+            {dashboard.routeMeasurementSummary.length ? <><div className="table-scroll"><table className="route-summary-table"><thead><tr><th>Autoroute</th><th>Type de mesure</th><th>Anomalies déclarées</th><th>Affectations</th></tr></thead><tbody>
+              {visibleRouteSummary.map((row) => <tr key={`${row.highway}-${row.measurementType}`}><td><button className="route-filter-button" onClick={() => updateFilter("highway", row.highway)} title={`Filtrer sur ${row.highway}`}>{row.highway}</button></td><td><button className="measure-filter-button" onClick={() => updateFilter("measurementType", row.measurementType as MeasurementType)} title={`Filtrer sur ${row.measurementType}`}>{row.measurementType}</button></td><td><b className="metric-anomaly">{row.anomalies}</b></td><td><b className="metric-assignment">{row.assignments}</b></td></tr>)}
+            </tbody></table></div>{dashboard.routeMeasurementSummary.length > 12 && <button className="load-more" onClick={() => setRouteSummaryExpanded((value) => !value)}>{routeSummaryExpanded ? "Réduire la synthèse" : `Afficher les ${dashboard.routeMeasurementSummary.length - 12} lignes restantes`}</button>}</> : <EmptyChart />}
           </article>
         </div>
       </> : <>

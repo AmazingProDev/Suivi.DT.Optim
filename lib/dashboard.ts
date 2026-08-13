@@ -27,6 +27,7 @@ export type SituationDashboardView = {
   assignmentTotal: number;
   responsibilities: Array<{ label: string; value: number }>;
   measurementSeries: Array<{ type: string; anomalies: number; assignments: number }>;
+  routeMeasurementSummary: Array<{ highway: string; measurementType: string; anomalies: number; assignments: number }>;
   vendorPipeline: Array<{ vendor: string; dt1: number; dt2: number; pending: number }>;
   matrix: Array<{ responsibility: string; counts: Record<string, number>; total: number }>;
 };
@@ -88,6 +89,20 @@ export function buildDashboardView(filters: DashboardFilters): SituationDashboar
     anomalies: total(anomalies.filter((item) => item.testFamily === type)),
     assignments: total(actions.filter((item) => item.testFamily === type)),
   }));
+  const routeMeasurementKeys = new Set([
+    ...anomalies.map((item) => `${item.highway}\u0000${item.testFamily}`),
+    ...actions.map((item) => `${item.highway}\u0000${item.testFamily}`),
+  ]);
+  const routeMeasurementSummary = [...routeMeasurementKeys].map((key) => {
+    const [highway, measurementType] = key.split("\u0000");
+    return {
+      highway,
+      measurementType,
+      anomalies: total(anomalies.filter((item) => item.highway === highway && item.testFamily === measurementType)),
+      assignments: total(actions.filter((item) => item.highway === highway && item.testFamily === measurementType)),
+    };
+  }).sort((left, right) => left.highway.localeCompare(right.highway, "fr")
+    || MEASUREMENT_TYPES.indexOf(left.measurementType as MeasurementType) - MEASUREMENT_TYPES.indexOf(right.measurementType as MeasurementType));
   const vendors = filters.vendor === "Tous" ? ["Nokia", "Ericsson", "Huawei"] : [filters.vendor];
   const vendorPipeline = vendors.map((vendor) => {
     const vendorParcours = parcours.filter((item) => item.vendor === vendor);
@@ -112,6 +127,7 @@ export function buildDashboardView(filters: DashboardFilters): SituationDashboar
     assignmentTotal: total(actions),
     responsibilities,
     measurementSeries,
+    routeMeasurementSummary,
     vendorPipeline,
     matrix,
   };

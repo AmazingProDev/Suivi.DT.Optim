@@ -44,6 +44,16 @@ test("keeps anomalies and Situation assignments as separate measures", () => {
   assert.equal(sourceData.situationActions.filter((item) => item.vendor === "Huawei").reduce((sum, item) => sum + item.count, 0), 243);
 });
 
+test("summarizes Situation by exact autoroute and measurement type", () => {
+  const summarize = (highway, testFamily, rows) => rows
+    .filter((item) => item.highway === highway && item.testFamily === testFamily)
+    .reduce((sum, item) => sum + item.count, 0);
+  assert.equal(summarize("Autoroute Rabat - DouarAtchane", "Voix Volte", sourceData.situationAnomalies), 19);
+  assert.equal(summarize("Autoroute Rabat - DouarAtchane", "Voix Volte", sourceData.situationActions), 19);
+  assert.equal(summarize("Autoroute Rabat - DouarAtchane", "Data libre", sourceData.situationAnomalies), 8);
+  assert.equal(summarize("Autoroute Rabat - DouarAtchane", "Data libre", sourceData.situationActions), 14);
+});
+
 test("qualifies only an exact parcours with a strictly later measurement", () => {
   for (const parcours of sourceData.parcours) {
     const uniqueDates = [...new Set(parcours.measurementSequence)].sort();
@@ -70,9 +80,12 @@ test("dashboard implementation exposes cross filters and Situation drill-down", 
   assert.match(page, /Équipementier[\s\S]*Type de mesure[\s\S]*Parcours[\s\S]*Responsabilité/);
   assert.match(page, /openSituationCell/);
   assert.match(page, /showDetailedActions/);
+  assert.match(page, /Autoroute × type de mesure/);
+  assert.match(page, /routeMeasurementSummary/);
   assert.match(page, /aria-label="Filtres du dashboard"/);
   assert.match(dashboard, /export type DashboardFilters/);
   assert.match(dashboard, /export type SituationDashboardView/);
   assert.match(dashboard, /export function buildDashboardView/);
   assert.match(dashboard, /export function buildSituationDrilldown/);
+  assert.match(dashboard, /routeMeasurementSummary/);
 });
