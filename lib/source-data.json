@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-13T07:36:39.954Z",
+  "generatedAt": "2026-08-13T07:46:10.119Z",
   "sourceSummary": {
     "workbooks": 3,
     "parcours": 14,
-    "qualifiedParcours": 10,
-    "unqualifiedParcours": 4,
-    "measurementEvents": 25,
+    "qualifiedParcours": 0,
+    "unqualifiedParcours": 14,
+    "measurementEvents": 14,
     "detailedActions": 279,
     "actionsWithQualification": 256,
     "actionsWithoutWorkflowStatus": 279,
@@ -19,13 +19,13 @@
       },
       "Ericsson": {
         "parcours": 4,
-        "qualifiedParcours": 4,
+        "qualifiedParcours": 0,
         "actions": 70,
         "actionTypesAssigned": 65
       },
       "Huawei": {
         "parcours": 7,
-        "qualifiedParcours": 6,
+        "qualifiedParcours": 0,
         "actions": 191,
         "actionTypesAssigned": 179
       }
@@ -75,7 +75,13 @@
       "firstMeasurementDate": "2026-08-07",
       "qualificationDate": "",
       "latestMeasurementDate": "2026-08-07",
-      "qualificationStatus": "À reprogrammer"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Nokia.xlsx",
+          "row": 3
+        }
+      ]
     },
     {
       "id": "NOK-P-002",
@@ -111,7 +117,13 @@
       "firstMeasurementDate": "2026-08-08",
       "qualificationDate": "",
       "latestMeasurementDate": "2026-08-08",
-      "qualificationStatus": "À reprogrammer"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Nokia.xlsx",
+          "row": 4
+        }
+      ]
     },
     {
       "id": "NOK-P-003",
@@ -147,7 +159,13 @@
       "firstMeasurementDate": "2026-08-11",
       "qualificationDate": "",
       "latestMeasurementDate": "2026-08-11",
-      "qualificationStatus": "À reprogrammer"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Nokia.xlsx",
+          "row": 5
+        }
+      ]
     },
     {
       "id": "ERI-P-001",
@@ -177,14 +195,19 @@
       "sourceFile": "Traitement des Autoroutes - Ericsson.xlsx",
       "sourceRow": 3,
       "measurementSequence": [
-        "2026-08-05",
-        "2026-08-06"
+        "2026-08-05"
       ],
-      "passCount": 2,
+      "passCount": 1,
       "firstMeasurementDate": "2026-08-05",
-      "qualificationDate": "2026-08-06",
-      "latestMeasurementDate": "2026-08-06",
-      "qualificationStatus": "Qualifié"
+      "qualificationDate": "",
+      "latestMeasurementDate": "2026-08-05",
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Ericsson.xlsx",
+          "row": 3
+        }
+      ]
     },
     {
       "id": "ERI-P-002",
@@ -214,14 +237,19 @@
       "sourceFile": "Traitement des Autoroutes - Ericsson.xlsx",
       "sourceRow": 4,
       "measurementSequence": [
-        "2026-08-05",
-        "2026-08-06"
+        "2026-08-05"
       ],
-      "passCount": 2,
+      "passCount": 1,
       "firstMeasurementDate": "2026-08-05",
-      "qualificationDate": "2026-08-06",
-      "latestMeasurementDate": "2026-08-06",
-      "qualificationStatus": "Qualifié"
+      "qualificationDate": "",
+      "latestMeasurementDate": "2026-08-05",
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Ericsson.xlsx",
+          "row": 4
+        }
+      ]
     },
     {
       "id": "ERI-P-003",
@@ -251,14 +279,19 @@
       "sourceFile": "Traitement des Autoroutes - Ericsson.xlsx",
       "sourceRow": 5,
       "measurementSequence": [
-        "2026-08-05",
         "2026-08-06"
       ],
-      "passCount": 2,
-      "firstMeasurementDate": "2026-08-05",
-      "qualificationDate": "2026-08-06",
+      "passCount": 1,
+      "firstMeasurementDate": "2026-08-06",
+      "qualificationDate": "",
       "latestMeasurementDate": "2026-08-06",
-      "qualificationStatus": "Qualifié"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Ericsson.xlsx",
+          "row": 5
+        }
+      ]
     },
     {
       "id": "ERI-P-004",
@@ -288,14 +321,19 @@
       "sourceFile": "Traitement des Autoroutes - Ericsson.xlsx",
       "sourceRow": 6,
       "measurementSequence": [
-        "2026-08-05",
         "2026-08-06"
       ],
-      "passCount": 2,
-      "firstMeasurementDate": "2026-08-05",
-      "qualificationDate": "2026-08-06",
+      "passCount": 1,
+      "firstMeasurementDate": "2026-08-06",
+      "qualificationDate": "",
       "latestMeasurementDate": "2026-08-06",
-      "qualificationStatus": "Qualifié"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Ericsson.xlsx",
+          "row": 6
+        }
+      ]
     },
     {
       "id": "HUA-P-001",
@@ -325,14 +363,19 @@
       "sourceFile": "Traitement des Autoroutes - Huawei.xlsx",
       "sourceRow": 3,
       "measurementSequence": [
-        "2026-06-08",
         "2026-08-06"
       ],
-      "passCount": 2,
-      "firstMeasurementDate": "2026-06-08",
-      "qualificationDate": "2026-08-06",
+      "passCount": 1,
+      "firstMeasurementDate": "2026-08-06",
+      "qualificationDate": "",
       "latestMeasurementDate": "2026-08-06",
-      "qualificationStatus": "Qualifié"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Huawei.xlsx",
+          "row": 3
+        }
+      ]
     },
     {
       "id": "HUA-P-002",
@@ -362,14 +405,19 @@
       "sourceFile": "Traitement des Autoroutes - Huawei.xlsx",
       "sourceRow": 4,
       "measurementSequence": [
-        "2026-07-08",
         "2026-08-07"
       ],
-      "passCount": 2,
-      "firstMeasurementDate": "2026-07-08",
-      "qualificationDate": "2026-08-07",
+      "passCount": 1,
+      "firstMeasurementDate": "2026-08-07",
+      "qualificationDate": "",
       "latestMeasurementDate": "2026-08-07",
-      "qualificationStatus": "Qualifié"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Huawei.xlsx",
+          "row": 4
+        }
+      ]
     },
     {
       "id": "HUA-P-003",
@@ -399,14 +447,19 @@
       "sourceFile": "Traitement des Autoroutes - Huawei.xlsx",
       "sourceRow": 5,
       "measurementSequence": [
-        "2026-06-08",
         "2026-07-26"
       ],
-      "passCount": 2,
-      "firstMeasurementDate": "2026-06-08",
-      "qualificationDate": "2026-07-26",
+      "passCount": 1,
+      "firstMeasurementDate": "2026-07-26",
+      "qualificationDate": "",
       "latestMeasurementDate": "2026-07-26",
-      "qualificationStatus": "Qualifié"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Huawei.xlsx",
+          "row": 5
+        }
+      ]
     },
     {
       "id": "HUA-P-004",
@@ -442,7 +495,13 @@
       "firstMeasurementDate": "2026-06-08",
       "qualificationDate": "",
       "latestMeasurementDate": "2026-06-08",
-      "qualificationStatus": "À reprogrammer"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Huawei.xlsx",
+          "row": 6
+        }
+      ]
     },
     {
       "id": "HUA-P-005",
@@ -472,14 +531,19 @@
       "sourceFile": "Traitement des Autoroutes - Huawei.xlsx",
       "sourceRow": 7,
       "measurementSequence": [
-        "2026-06-08",
-        "2026-08-06"
+        "2026-06-08"
       ],
-      "passCount": 2,
+      "passCount": 1,
       "firstMeasurementDate": "2026-06-08",
-      "qualificationDate": "2026-08-06",
-      "latestMeasurementDate": "2026-08-06",
-      "qualificationStatus": "Qualifié"
+      "qualificationDate": "",
+      "latestMeasurementDate": "2026-06-08",
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Huawei.xlsx",
+          "row": 7
+        }
+      ]
     },
     {
       "id": "HUA-P-006",
@@ -509,15 +573,19 @@
       "sourceFile": "Traitement des Autoroutes - Huawei.xlsx",
       "sourceRow": 8,
       "measurementSequence": [
-        "2026-06-08",
-        "2026-08-05",
         "2026-08-06"
       ],
-      "passCount": 3,
-      "firstMeasurementDate": "2026-06-08",
-      "qualificationDate": "2026-08-05",
+      "passCount": 1,
+      "firstMeasurementDate": "2026-08-06",
+      "qualificationDate": "",
       "latestMeasurementDate": "2026-08-06",
-      "qualificationStatus": "Qualifié"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Huawei.xlsx",
+          "row": 8
+        }
+      ]
     },
     {
       "id": "HUA-P-007",
@@ -547,14 +615,19 @@
       "sourceFile": "Traitement des Autoroutes - Huawei.xlsx",
       "sourceRow": 9,
       "measurementSequence": [
-        "2026-08-07",
         "2026-08-10"
       ],
-      "passCount": 2,
-      "firstMeasurementDate": "2026-08-07",
-      "qualificationDate": "2026-08-10",
+      "passCount": 1,
+      "firstMeasurementDate": "2026-08-10",
+      "qualificationDate": "",
       "latestMeasurementDate": "2026-08-10",
-      "qualificationStatus": "Qualifié"
+      "qualificationStatus": "À reprogrammer",
+      "sourceRows": [
+        {
+          "file": "Traitement des Autoroutes - Huawei.xlsx",
+          "row": 9
+        }
+      ]
     }
   ],
   "actions": [
