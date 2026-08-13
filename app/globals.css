@@ -72,11 +72,11 @@ select, input { height: 40px; padding: 0 11px; font-size: 12px; }
 .bar-track i { display: block; height: 100%; background: linear-gradient(90deg, var(--teal), #55b7ac); border-radius: inherit; }
 .bar-row strong { text-align: right; font-size: 12px; }
 .vendor-list { display: grid; }
-.vendor-list button { border: 0; border-bottom: 1px solid #edf1f4; background: #fff; display: grid; grid-template-columns: 12px 1fr auto auto; gap: 10px; align-items: center; text-align: left; padding: 13px 20px; cursor: pointer; }
+.vendor-list button { border: 0; border-bottom: 1px solid #edf1f4; background: #fff; display: grid; grid-template-columns: 12px minmax(130px, 1fr) auto auto; gap: 10px; align-items: center; text-align: left; padding: 13px 20px; cursor: pointer; }
 .vendor-list button:hover { background: #f8fafb; }
 .vendor-list button span:nth-child(2) { display: grid; gap: 2px; }
 .vendor-list small { color: #84919e; font-size: 10px; }
-.vendor-list b { font-size: 18px; } .vendor-list em { font-style: normal; color: #85929e; font-size: 10px; }
+.vendor-metric { min-width: 44px; display: grid; gap: 2px; text-align: right; }.vendor-list b { font-size: 16px; } .vendor-list em { font-style: normal; color: #85929e; font-size: 9px; }
 .vendor-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 7px; vertical-align: 1px; background: #8da1af; }
 .vendor-nokia { background: #315fd3; }.vendor-ericsson { background: #df5a53; }.vendor-huawei { background: #ef9f3f; }
 .quality-callout { margin: 14px; padding: 12px; display: flex; gap: 11px; align-items: flex-start; border-radius: 10px; background: var(--amber-soft); color: #805718; }

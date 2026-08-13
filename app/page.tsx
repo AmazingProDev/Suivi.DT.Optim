@@ -93,7 +93,15 @@ export default function Home() {
   }), [routeQualification, search, vendor]);
 
   const selected = selectedId ? actions.find((item) => item.id === selectedId) ?? null : null;
-  const maxQualification = Math.max(...Object.values(sourceData.sourceSummary.byQualification));
+  const responsibilityEntries = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const item of sourceData.situationActions) {
+      if (vendor !== "Tous" && item.vendor !== vendor) continue;
+      totals[item.responsibility] = (totals[item.responsibility] ?? 0) + item.count;
+    }
+    return Object.entries(totals).sort((left, right) => right[1] - left[1]);
+  }, [vendor]);
+  const maxResponsibility = Math.max(1, ...responsibilityEntries.map(([, value]) => value));
 
   async function saveWorkflow(next: Workflow) {
     if (!selected) return;
@@ -157,9 +165,9 @@ export default function Home() {
 
       <section className="shell kpi-grid" aria-label="Indicateurs clés">
         <KpiCard label="Passages de mesure" value={sourceData.sourceSummary.measurementEvents} detail={`${sourceData.sourceSummary.parcours} parcours distincts`} tone="teal" />
-        <KpiCard label="Parcours qualifiés" value={sourceData.sourceSummary.qualifiedParcours} detail="DT2 ou passage ultérieur réalisé" />
-        <KpiCard label="Taux de qualification" value={`${Math.round((sourceData.sourceSummary.qualifiedParcours / sourceData.sourceSummary.parcours) * 100)}%`} detail={`${sourceData.sourceSummary.qualifiedParcours} sur ${sourceData.sourceSummary.parcours} parcours`} tone="amber" />
-        <KpiCard label="À reprogrammer" value={sourceData.sourceSummary.unqualifiedParcours} detail="un seul passage enregistré" tone="coral" />
+        <KpiCard label="Anomalies déclarées" value={sourceData.sourceSummary.declaredAnomalies} detail="source : feuille Situation" />
+        <KpiCard label="Actions par responsabilité" value={sourceData.sourceSummary.situationActions} detail="affectations issues de Situation" tone="amber" />
+        <KpiCard label="Parcours qualifiés" value={sourceData.sourceSummary.qualifiedParcours} detail={`${sourceData.sourceSummary.unqualifiedParcours} en attente de DT2`} tone="coral" />
       </section>
 
       <section className="shell workspace">
@@ -187,25 +195,26 @@ export default function Home() {
         {tab === "synthese" && (
           <><div className="qualification-rule"><span><b>DT1</b> Premier passage</span><i>→</i><span><b>DT2</b> Passage ultérieur</span><i>→</i><strong>Parcours qualifié</strong></div><div className="overview-grid">
             <article className="panel qualification-panel">
-              <div className="panel-heading"><div><span className="section-kicker">Répartition</span><h2>Types d’action proposés</h2></div><span className="microcopy">Une action peut relever de plusieurs types</span></div>
+              <div className="panel-heading"><div><span className="section-kicker">Situation · {vendor}</span><h2>Actions par responsabilité</h2></div><span className="microcopy">Affectations renseignées dans la feuille Situation</span></div>
               <div className="bars">
-                {Object.entries(sourceData.sourceSummary.byQualification).sort((a, b) => b[1] - a[1]).map(([label, value]) => (
-                  <div className="bar-row" key={label}><span>{label === "Non qualifié" ? "Type non renseigné" : label}</span><div className="bar-track"><i style={{ width: `${Math.max(5, (value / maxQualification) * 100)}%` }} /></div><strong>{value}</strong></div>
+                {responsibilityEntries.map(([label, value]) => (
+                  <div className="bar-row" key={label}><span>{label}</span><div className="bar-track"><i style={{ width: `${Math.max(5, (value / maxResponsibility) * 100)}%` }} /></div><strong>{value}</strong></div>
                 ))}
               </div>
             </article>
             <article className="panel vendor-panel">
-              <div className="panel-heading"><div><span className="section-kicker">Couverture</span><h2>Volumes par équipementier</h2></div></div>
+              <div className="panel-heading"><div><span className="section-kicker">Situation</span><h2>Synthèse par équipementier</h2></div></div>
               <div className="vendor-list">
                 {Object.entries(sourceData.sourceSummary.vendors).map(([name, values]) => (
-                  <button key={name} onClick={() => { setVendor(name); setTab("actions"); }}>
+                  <button key={name} onClick={() => setVendor(name)}>
                     <span className={vendorClass(name)} />
-                    <span><strong>{name}</strong><small>{values.qualifiedParcours}/{values.parcours} parcours qualifiés</small></span>
-                    <b>{values.actions}</b><em>actions</em>
+                    <span><strong>{name}</strong><small>{values.measurementEvents} DT · {values.parcours} parcours</small></span>
+                    <span className="vendor-metric"><b>{values.declaredAnomalies}</b><em>anomalies</em></span>
+                    <span className="vendor-metric"><b>{values.situationActions}</b><em>affectations</em></span>
                   </button>
                 ))}
               </div>
-              <div className="quality-callout"><span>!</span><div><strong>Qualité des données</strong><p>{sourceData.sourceSummary.actionsWithQualityFlags} lignes nécessitent une vérification de complétude.</p></div></div>
+              <div className="quality-callout"><span>i</span><div><strong>Lecture des chiffres</strong><p>Une même anomalie peut être affectée à plusieurs responsabilités dans Situation.</p></div></div>
             </article>
             <article className="panel attention-panel">
               <div className="panel-heading"><div><span className="section-kicker">À traiter en priorité</span><h2>Points de contrôle</h2></div></div>
