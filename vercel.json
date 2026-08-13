@@ -1,12 +1,11 @@
 {
   "framework": null,
-  "buildCommand": "true",
+  "buildCommand": "npm run build:vercel",
   "outputDirectory": "vercel-static",
-  "redirects": [
+  "rewrites": [
     {
-      "source": "/:path*",
-      "destination": "https://suivi-parcours-dt.elqorchi-abdelilah.chatgpt.site/:path*",
-      "permanent": false
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
