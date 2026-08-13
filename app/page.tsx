@@ -49,6 +49,7 @@ export default function Home() {
   const [vendor, setVendor] = useState("Tous");
   const [qualification, setQualification] = useState("Toutes");
   const [routeQualification, setRouteQualification] = useState("Tous");
+  const [measurementType, setMeasurementType] = useState("Tous");
   const [status, setStatus] = useState("Tous");
   const [search, setSearch] = useState("");
   const [updates, setUpdates] = useState<Record<string, Workflow>>({});
@@ -93,15 +94,32 @@ export default function Home() {
   }), [routeQualification, search, vendor]);
 
   const selected = selectedId ? actions.find((item) => item.id === selectedId) ?? null : null;
+  const measurementTypes = Object.keys(sourceData.sourceSummary.actionsByMeasurementType);
+  const filteredSituationActions = useMemo(() => sourceData.situationActions.filter((item) =>
+    (vendor === "Tous" || item.vendor === vendor)
+      && (measurementType === "Tous" || item.testFamily === measurementType)
+  ), [measurementType, vendor]);
+  const overviewAnomalies = useMemo(() => sourceData.situationAnomalies
+    .filter((item) => (vendor === "Tous" || item.vendor === vendor)
+      && (measurementType === "Tous" || item.testFamily === measurementType))
+    .reduce((sum, item) => sum + item.count, 0), [measurementType, vendor]);
+  const overviewParcours = useMemo(() => sourceData.parcours.filter((item) => vendor === "Tous" || item.vendor === vendor), [vendor]);
+  const overviewActions = filteredSituationActions.reduce((sum, item) => sum + item.count, 0);
   const responsibilityEntries = useMemo(() => {
     const totals: Record<string, number> = {};
-    for (const item of sourceData.situationActions) {
-      if (vendor !== "Tous" && item.vendor !== vendor) continue;
+    for (const item of filteredSituationActions) {
       totals[item.responsibility] = (totals[item.responsibility] ?? 0) + item.count;
     }
     return Object.entries(totals).sort((left, right) => right[1] - left[1]);
-  }, [vendor]);
+  }, [filteredSituationActions]);
   const maxResponsibility = Math.max(1, ...responsibilityEntries.map(([, value]) => value));
+  const visibleMeasurementTypes = measurementType === "Tous" ? measurementTypes : [measurementType];
+  const responsibilityMatrix = responsibilityEntries.map(([responsibility]) => ({
+    responsibility,
+    counts: visibleMeasurementTypes.map((type) => filteredSituationActions
+      .filter((item) => item.responsibility === responsibility && item.testFamily === type)
+      .reduce((sum, item) => sum + item.count, 0)),
+  }));
 
   async function saveWorkflow(next: Workflow) {
     if (!selected) return;
@@ -164,10 +182,10 @@ export default function Home() {
       </section>
 
       <section className="shell kpi-grid" aria-label="Indicateurs clés">
-        <KpiCard label="Passages de mesure" value={sourceData.sourceSummary.measurementEvents} detail={`${sourceData.sourceSummary.parcours} parcours distincts`} tone="teal" />
-        <KpiCard label="Anomalies déclarées" value={sourceData.sourceSummary.declaredAnomalies} detail="source : feuille Situation" />
-        <KpiCard label="Actions par responsabilité" value={sourceData.sourceSummary.situationActions} detail="affectations issues de Situation" tone="amber" />
-        <KpiCard label="Parcours qualifiés" value={sourceData.sourceSummary.qualifiedParcours} detail={`${sourceData.sourceSummary.unqualifiedParcours} en attente de DT2`} tone="coral" />
+        <KpiCard label="Passages de mesure" value={overviewParcours.reduce((sum, item) => sum + item.passCount, 0)} detail={`${overviewParcours.length} parcours · ${vendor}`} tone="teal" />
+        <KpiCard label="Anomalies déclarées" value={overviewAnomalies} detail={`${measurementType} · feuille Situation`} />
+        <KpiCard label="Actions par responsabilité" value={overviewActions} detail={`${measurementType} · feuille Situation`} tone="amber" />
+        <KpiCard label="Parcours qualifiés" value={overviewParcours.filter((item) => item.qualificationStatus === "Qualifié").length} detail={`${overviewParcours.filter((item) => item.qualificationStatus !== "Qualifié").length} en attente de DT2`} tone="coral" />
       </section>
 
       <section className="shell workspace">
@@ -187,6 +205,7 @@ export default function Home() {
             <label><span>Type d’action</span><select value={qualification} onChange={(event) => { setQualification(event.target.value); setVisibleRows(40); }}><option>Toutes</option>{Object.keys(sourceData.sourceSummary.byQualification).map((item) => <option key={item} value={item}>{item === "Non qualifié" ? "Type non renseigné" : item}</option>)}</select></label>
             <label><span>Statut</span><select value={status} onChange={(event) => { setStatus(event.target.value); setVisibleRows(40); }}><option>Tous</option>{statusOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
           </>}
+          {tab === "synthese" && <label><span>Type de mesure</span><select value={measurementType} onChange={(event) => setMeasurementType(event.target.value)}><option>Tous</option>{measurementTypes.map((item) => <option key={item}>{item}</option>)}</select></label>}
           {tab === "parcours" && <label><span>Qualification parcours</span><select value={routeQualification} onChange={(event) => setRouteQualification(event.target.value)}><option>Tous</option><option>Qualifié</option><option>À reprogrammer</option></select></label>}
         </div>
 
@@ -195,7 +214,7 @@ export default function Home() {
         {tab === "synthese" && (
           <><div className="qualification-rule"><span><b>DT1</b> Premier passage</span><i>→</i><span><b>DT2</b> Passage ultérieur</span><i>→</i><strong>Parcours qualifié</strong></div><div className="overview-grid">
             <article className="panel qualification-panel">
-              <div className="panel-heading"><div><span className="section-kicker">Situation · {vendor}</span><h2>Actions par responsabilité</h2></div><span className="microcopy">Affectations renseignées dans la feuille Situation</span></div>
+              <div className="panel-heading"><div><span className="section-kicker">Situation · {vendor} · {measurementType}</span><h2>Actions par responsabilité</h2></div><span className="microcopy">Affectations renseignées dans la feuille Situation</span></div>
               <div className="bars">
                 {responsibilityEntries.map(([label, value]) => (
                   <div className="bar-row" key={label}><span>{label}</span><div className="bar-track"><i style={{ width: `${Math.max(5, (value / maxResponsibility) * 100)}%` }} /></div><strong>{value}</strong></div>
@@ -223,6 +242,12 @@ export default function Home() {
                 <button onClick={() => { setQualification("Non qualifié"); setTab("actions"); }}><span className="attention-number">{sourceData.sourceSummary.detailedActions - sourceData.sourceSummary.actionsWithQualification}</span><span><strong>Type d’action manquant</strong><small>Identifier l’entité responsable</small></span><b>→</b></button>
                 <button onClick={() => { setStatus("Non renseigné"); setTab("actions"); }}><span className="attention-number">{sourceData.sourceSummary.actionsWithoutWorkflowStatus}</span><span><strong>Statut non initialisé</strong><small>Lancer le workflow de suivi</small></span><b>→</b></button>
               </div>
+            </article>
+            <article className="panel matrix-panel">
+              <div className="panel-heading"><div><span className="section-kicker">Situation · répartition croisée</span><h2>Type de mesure × responsabilité</h2></div><span className="microcopy">{vendor === "Tous" ? "Tous les équipementiers" : vendor} · {measurementType === "Tous" ? "Tous les types de mesure" : measurementType}</span></div>
+              <div className="table-scroll"><table className="matrix-table"><thead><tr><th>Responsabilité / type d’action</th>{visibleMeasurementTypes.map((type) => <th key={type}>{type}</th>)}<th>Total</th></tr></thead>
+                <tbody>{responsibilityMatrix.map((row) => <tr key={row.responsibility}><td><strong>{row.responsibility}</strong></td>{row.counts.map((count, index) => <td key={visibleMeasurementTypes[index]}>{count}</td>)}<td><b>{row.counts.reduce((sum, count) => sum + count, 0)}</b></td></tr>)}</tbody>
+              </table></div>
             </article>
           </div></>
         )}

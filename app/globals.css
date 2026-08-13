@@ -93,6 +93,7 @@ select, input { height: 40px; padding: 0 11px; font-size: 12px; }
 .table-panel { overflow: hidden; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 970px; }
+.matrix-panel { grid-column: 1 / -1; }.matrix-table { min-width: 600px; }.matrix-table td { text-align: right; }.matrix-table td:first-child { text-align: left; }.matrix-table th:not(:first-child) { text-align: right; }
 th { height: 42px; padding: 0 15px; background: #f6f8fa; color: #758493; text-align: left; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
 td { padding: 12px 15px; border-top: 1px solid #edf1f4; font-size: 11px; color: #3f5164; vertical-align: middle; }
 td strong { color: var(--ink); font-size: 11px; } td small { display: block; margin-top: 4px; color: #8996a2; font-size: 9px; max-width: 270px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
