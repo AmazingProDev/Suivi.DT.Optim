@@ -93,7 +93,7 @@ export default function Home() {
   const maxResponsibility = Math.max(1, ...dashboard.responsibilities.map((item) => item.value));
   const maxComparison = Math.max(1, ...dashboard.measurementSeries.flatMap((item) => [item.anomalies, item.assignments]));
   const visibleTypes = filters.measurementType === "Tous" ? MEASUREMENT_TYPES : [filters.measurementType];
-  const visibleRouteSummary = routeSummaryExpanded ? dashboard.routeMeasurementSummary : dashboard.routeMeasurementSummary.slice(0, 12);
+  const visibleOperationalSummary = routeSummaryExpanded ? dashboard.operationalSummary : dashboard.operationalSummary.slice(0, 12);
 
   useEffect(() => {
     function closeDrawer(event: KeyboardEvent) {
@@ -113,6 +113,10 @@ export default function Home() {
 
   function openSituationCell(responsibility: string, measurementType: string) {
     setSituationDrilldown(buildSituationDrilldown(filters, responsibility, measurementType));
+  }
+
+  function applyOperationalScope(row: { vendor: string; highway: string; measurementType: string }, responsibility = "Tous") {
+    setFilters((current) => ({ ...current, vendor: row.vendor as Vendor, highway: row.highway, measurementType: row.measurementType as MeasurementType, responsibility }));
   }
 
   function showDetailedActions(drilldown: SituationDrilldown) {
@@ -217,10 +221,10 @@ export default function Home() {
           </article>
 
           <article className="panel route-summary-panel">
-            <div className="panel-heading"><div><span className="section-kicker">Situation · synthèse détaillée</span><h2>Autoroute × type de mesure</h2></div><span className="microcopy">Cliquer une autoroute ou un type pour filtrer le dashboard</span></div>
-            {dashboard.routeMeasurementSummary.length ? <><div className="table-scroll"><table className="route-summary-table"><thead><tr><th>Autoroute</th><th>Type de mesure</th><th>Anomalies déclarées</th><th>Affectations</th></tr></thead><tbody>
-              {visibleRouteSummary.map((row) => <tr key={`${row.highway}-${row.measurementType}`}><td><button className="route-filter-button" onClick={() => updateFilter("highway", row.highway)} title={`Filtrer sur ${row.highway}`}>{row.highway}</button></td><td><button className="measure-filter-button" onClick={() => updateFilter("measurementType", row.measurementType as MeasurementType)} title={`Filtrer sur ${row.measurementType}`}>{row.measurementType}</button></td><td><b className="metric-anomaly">{row.anomalies}</b></td><td><b className="metric-assignment">{row.assignments}</b></td></tr>)}
-            </tbody></table></div>{dashboard.routeMeasurementSummary.length > 12 && <button className="load-more" onClick={() => setRouteSummaryExpanded((value) => !value)}>{routeSummaryExpanded ? "Réduire la synthèse" : `Afficher les ${dashboard.routeMeasurementSummary.length - 12} lignes restantes`}</button>}</> : <EmptyChart />}
+            <div className="panel-heading"><div><span className="section-kicker">Situation · synthèse opérationnelle</span><h2>Autoroute, équipementier & type de test</h2></div><span className="microcopy">Cliquer pour appliquer le périmètre ou filtrer une responsabilité</span></div>
+            {dashboard.operationalSummary.length ? <><div className="table-scroll"><table className="route-summary-table operational-summary-table"><thead><tr><th>Autoroute</th><th>Équipementier</th><th>Type de test</th><th>Dégradations</th><th>Affectations Situation</th><th>Répartition par responsabilité</th></tr></thead><tbody>
+              {visibleOperationalSummary.map((row) => <tr key={`${row.vendor}-${row.highway}-${row.measurementType}`}><td><button className="route-filter-button" onClick={() => applyOperationalScope(row)} title={`Filtrer sur ${row.highway} · ${row.vendor} · ${row.measurementType}`}>{row.highway}</button></td><td><button className={`vendor-filter-button ${vendorClass(row.vendor)}`} onClick={() => updateFilter("vendor", row.vendor as Vendor)} title={`Filtrer sur ${row.vendor}`}>{row.vendor}</button></td><td><button className="measure-filter-button" onClick={() => updateFilter("measurementType", row.measurementType as MeasurementType)} title={`Filtrer sur ${row.measurementType}`}>{row.measurementType}</button></td><td><b className="metric-anomaly">{row.anomalies}</b></td><td><b className="metric-assignment">{row.assignments}</b></td><td><div className="responsibility-breakdown">{row.responsibilityBreakdown.length ? row.responsibilityBreakdown.map((item) => <button key={item.responsibility} onClick={() => applyOperationalScope(row, item.responsibility)} title={`Voir ${item.count} affectation${item.count > 1 ? "s" : ""} ${item.responsibility} pour ce périmètre`}><span>{item.responsibility}</span><b>{item.count}</b></button>) : <span className="no-assignment">Aucune affectation</span>}</div></td></tr>)}
+            </tbody></table></div>{dashboard.operationalSummary.length > 12 && <button className="load-more" onClick={() => setRouteSummaryExpanded((value) => !value)}>{routeSummaryExpanded ? "Réduire la synthèse" : `Afficher les ${dashboard.operationalSummary.length - 12} lignes restantes`}</button>}</> : <EmptyChart />}
           </article>
         </div>
       </> : <>

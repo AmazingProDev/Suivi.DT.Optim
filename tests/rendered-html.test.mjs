@@ -44,7 +44,7 @@ test("keeps anomalies and Situation assignments as separate measures", () => {
   assert.equal(sourceData.situationActions.filter((item) => item.vendor === "Huawei").reduce((sum, item) => sum + item.count, 0), 243);
 });
 
-test("summarizes Situation by exact autoroute and measurement type", () => {
+test("summarizes Situation by exact autoroute, vendor and measurement type", () => {
   const summarize = (highway, testFamily, rows) => rows
     .filter((item) => item.highway === highway && item.testFamily === testFamily)
     .reduce((sum, item) => sum + item.count, 0);
@@ -52,6 +52,13 @@ test("summarizes Situation by exact autoroute and measurement type", () => {
   assert.equal(summarize("Autoroute Rabat - DouarAtchane", "Voix Volte", sourceData.situationActions), 19);
   assert.equal(summarize("Autoroute Rabat - DouarAtchane", "Data libre", sourceData.situationAnomalies), 8);
   assert.equal(summarize("Autoroute Rabat - DouarAtchane", "Data libre", sourceData.situationActions), 14);
+  const rabatHuaweiVolteActions = sourceData.situationActions.filter((item) => item.vendor === "Huawei"
+    && item.highway === "Autoroute Rabat - DouarAtchane" && item.testFamily === "Voix Volte");
+  assert.deepEqual(Object.fromEntries(rabatHuaweiVolteActions.map((item) => [item.responsibility, item.count])), {
+    Maintenance: 10,
+    Optimisation: 6,
+    "Maintenance + Optimisation": 3,
+  });
 });
 
 test("qualifies only an exact parcours with a strictly later measurement", () => {
@@ -80,12 +87,14 @@ test("dashboard implementation exposes cross filters and Situation drill-down", 
   assert.match(page, /Équipementier[\s\S]*Type de mesure[\s\S]*Parcours[\s\S]*Responsabilité/);
   assert.match(page, /openSituationCell/);
   assert.match(page, /showDetailedActions/);
-  assert.match(page, /Autoroute × type de mesure/);
-  assert.match(page, /routeMeasurementSummary/);
+  assert.match(page, /Autoroute, équipementier & type de test/);
+  assert.match(page, /Affectations Situation/);
+  assert.match(page, /responsibilityBreakdown/);
+  assert.match(page, /applyOperationalScope/);
   assert.match(page, /aria-label="Filtres du dashboard"/);
   assert.match(dashboard, /export type DashboardFilters/);
   assert.match(dashboard, /export type SituationDashboardView/);
   assert.match(dashboard, /export function buildDashboardView/);
   assert.match(dashboard, /export function buildSituationDrilldown/);
-  assert.match(dashboard, /routeMeasurementSummary/);
+  assert.match(dashboard, /operationalSummary/);
 });

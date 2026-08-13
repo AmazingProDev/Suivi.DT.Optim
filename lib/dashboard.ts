@@ -28,6 +28,14 @@ export type SituationDashboardView = {
   responsibilities: Array<{ label: string; value: number }>;
   measurementSeries: Array<{ type: string; anomalies: number; assignments: number }>;
   routeMeasurementSummary: Array<{ highway: string; measurementType: string; anomalies: number; assignments: number }>;
+  operationalSummary: Array<{
+    highway: string;
+    vendor: string;
+    measurementType: string;
+    anomalies: number;
+    assignments: number;
+    responsibilityBreakdown: Array<{ responsibility: string; count: number }>;
+  }>;
   vendorPipeline: Array<{ vendor: string; dt1: number; dt2: number; pending: number }>;
   matrix: Array<{ responsibility: string; counts: Record<string, number>; total: number }>;
 };
@@ -103,6 +111,28 @@ export function buildDashboardView(filters: DashboardFilters): SituationDashboar
     };
   }).sort((left, right) => left.highway.localeCompare(right.highway, "fr")
     || MEASUREMENT_TYPES.indexOf(left.measurementType as MeasurementType) - MEASUREMENT_TYPES.indexOf(right.measurementType as MeasurementType));
+  const operationalKeys = new Set([
+    ...anomalies.map((item) => `${item.vendor}\u0000${item.highway}\u0000${item.testFamily}`),
+    ...actions.map((item) => `${item.vendor}\u0000${item.highway}\u0000${item.testFamily}`),
+  ]);
+  const operationalSummary = [...operationalKeys].map((key) => {
+    const [vendor, highway, measurementType] = key.split("\u0000");
+    const rowActions = actions.filter((item) => item.vendor === vendor && item.highway === highway && item.testFamily === measurementType);
+    const responsibilityTotals: Record<string, number> = {};
+    for (const action of rowActions) responsibilityTotals[action.responsibility] = (responsibilityTotals[action.responsibility] ?? 0) + action.count;
+    return {
+      highway,
+      vendor,
+      measurementType,
+      anomalies: total(anomalies.filter((item) => item.vendor === vendor && item.highway === highway && item.testFamily === measurementType)),
+      assignments: total(rowActions),
+      responsibilityBreakdown: Object.entries(responsibilityTotals)
+        .map(([responsibility, count]) => ({ responsibility, count }))
+        .sort((left, right) => right.count - left.count || left.responsibility.localeCompare(right.responsibility, "fr")),
+    };
+  }).sort((left, right) => left.highway.localeCompare(right.highway, "fr")
+    || left.vendor.localeCompare(right.vendor, "fr")
+    || MEASUREMENT_TYPES.indexOf(left.measurementType as MeasurementType) - MEASUREMENT_TYPES.indexOf(right.measurementType as MeasurementType));
   const vendors = filters.vendor === "Tous" ? ["Nokia", "Ericsson", "Huawei"] : [filters.vendor];
   const vendorPipeline = vendors.map((vendor) => {
     const vendorParcours = parcours.filter((item) => item.vendor === vendor);
@@ -128,6 +158,7 @@ export function buildDashboardView(filters: DashboardFilters): SituationDashboar
     responsibilities,
     measurementSeries,
     routeMeasurementSummary,
+    operationalSummary,
     vendorPipeline,
     matrix,
   };
