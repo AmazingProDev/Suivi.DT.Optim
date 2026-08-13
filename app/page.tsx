@@ -48,6 +48,7 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("synthese");
   const [vendor, setVendor] = useState("Tous");
   const [qualification, setQualification] = useState("Toutes");
+  const [routeQualification, setRouteQualification] = useState("Tous");
   const [status, setStatus] = useState("Tous");
   const [search, setSearch] = useState("");
   const [updates, setUpdates] = useState<Record<string, Workflow>>({});
@@ -87,14 +88,11 @@ export default function Home() {
   const filteredParcours = useMemo(() => sourceData.parcours.filter((item) => {
     const query = search.trim().toLocaleLowerCase("fr");
     return (vendor === "Tous" || item.vendor === vendor)
+      && (routeQualification === "Tous" || item.qualificationStatus === routeQualification)
       && (!query || `${item.highway} ${item.mappingMycom}`.toLocaleLowerCase("fr").includes(query));
-  }), [search, vendor]);
+  }), [routeQualification, search, vendor]);
 
   const selected = selectedId ? actions.find((item) => item.id === selectedId) ?? null : null;
-  const qualified = actions.filter((item) => item.qualifications.length > 0).length;
-  const tracked = actions.filter((item) => item.workflow.status !== "Non renseigné").length;
-  const closed = actions.filter((item) => ["Terminée", "Validée"].includes(item.workflow.status)).length;
-  const completion = tracked ? Math.round((closed / tracked) * 100) : 0;
   const maxQualification = Math.max(...Object.values(sourceData.sourceSummary.byQualification));
 
   async function saveWorkflow(next: Workflow) {
@@ -120,7 +118,7 @@ export default function Home() {
   }
 
   function exportCsv() {
-    const header = ["ID", "Équipementier", "Parcours", "Date", "Nature", "Qualification", "Action", "Statut", "Priorité", "Responsable", "Échéance", "Validation"];
+    const header = ["ID", "Équipementier", "Parcours", "Date", "Nature", "Type d’action", "Action", "Statut", "Priorité", "Responsable", "Échéance", "Validation"];
     const rows = filteredActions.map((item) => [
       item.id, item.vendor, item.highway, item.measurementDate, item.issueNature,
       item.qualifications.join(" + ") || "Non qualifié", item.action, item.workflow.status,
@@ -149,7 +147,7 @@ export default function Home() {
         <div>
           <p className="eyebrow">Pilotage qualité réseau · Autoroutes</p>
           <h1>De la mesure terrain à l’action validée.</h1>
-          <p className="hero-copy">Une vue unique des parcours Nokia, Ericsson et Huawei, avec qualification, responsabilité, échéance et preuve de clôture.</p>
+          <p className="hero-copy">Une vue unique des parcours Nokia, Ericsson et Huawei. Un parcours devient qualifié lorsqu’un nouveau passage est réalisé après le DT initial.</p>
         </div>
         <div className="hero-actions">
           <button className="button button-secondary" onClick={exportCsv}>Exporter le suivi</button>
@@ -158,10 +156,10 @@ export default function Home() {
       </section>
 
       <section className="shell kpi-grid" aria-label="Indicateurs clés">
-        <KpiCard label="Parcours mesurés" value={sourceData.sourceSummary.parcours} detail="14 dates de réalisation renseignées" tone="teal" />
-        <KpiCard label="Constats détaillés" value={sourceData.sourceSummary.detailedActions} detail="sur les 3 équipementiers" />
-        <KpiCard label="Taux de qualification" value={`${Math.round((qualified / actions.length) * 100)}%`} detail={`${actions.length - qualified} lignes à qualifier`} tone="amber" />
-        <KpiCard label="Avancement actions" value={`${completion}%`} detail={tracked ? `${closed} clôturées sur ${tracked} suivies` : "Statuts à initialiser"} tone="coral" />
+        <KpiCard label="Passages de mesure" value={sourceData.sourceSummary.measurementEvents} detail={`${sourceData.sourceSummary.parcours} parcours distincts`} tone="teal" />
+        <KpiCard label="Parcours qualifiés" value={sourceData.sourceSummary.qualifiedParcours} detail="DT2 ou passage ultérieur réalisé" />
+        <KpiCard label="Taux de qualification" value={`${Math.round((sourceData.sourceSummary.qualifiedParcours / sourceData.sourceSummary.parcours) * 100)}%`} detail={`${sourceData.sourceSummary.qualifiedParcours} sur ${sourceData.sourceSummary.parcours} parcours`} tone="amber" />
+        <KpiCard label="À reprogrammer" value={sourceData.sourceSummary.unqualifiedParcours} detail="un seul passage enregistré" tone="coral" />
       </section>
 
       <section className="shell workspace">
@@ -178,20 +176,21 @@ export default function Home() {
           <label className="searchbox"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un axe, une cellule, un ID…" /></label>
           <label><span>Équipementier</span><select value={vendor} onChange={(event) => { setVendor(event.target.value); setVisibleRows(40); }}><option>Tous</option><option>Nokia</option><option>Ericsson</option><option>Huawei</option></select></label>
           {tab === "actions" && <>
-            <label><span>Qualification</span><select value={qualification} onChange={(event) => { setQualification(event.target.value); setVisibleRows(40); }}><option>Toutes</option>{Object.keys(sourceData.sourceSummary.byQualification).map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label><span>Type d’action</span><select value={qualification} onChange={(event) => { setQualification(event.target.value); setVisibleRows(40); }}><option>Toutes</option>{Object.keys(sourceData.sourceSummary.byQualification).map((item) => <option key={item} value={item}>{item === "Non qualifié" ? "Type non renseigné" : item}</option>)}</select></label>
             <label><span>Statut</span><select value={status} onChange={(event) => { setStatus(event.target.value); setVisibleRows(40); }}><option>Tous</option>{statusOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
           </>}
+          {tab === "parcours" && <label><span>Qualification parcours</span><select value={routeQualification} onChange={(event) => setRouteQualification(event.target.value)}><option>Tous</option><option>Qualifié</option><option>À reprogrammer</option></select></label>}
         </div>
 
         {!persistenceReady && <div className="notice notice-warning"><strong>Suivi en lecture seule.</strong> Les données source restent disponibles; l’enregistrement du workflow sera actif après initialisation de la base.</div>}
 
         {tab === "synthese" && (
-          <div className="overview-grid">
+          <><div className="qualification-rule"><span><b>DT1</b> Premier passage</span><i>→</i><span><b>DT2</b> Passage ultérieur</span><i>→</i><strong>Parcours qualifié</strong></div><div className="overview-grid">
             <article className="panel qualification-panel">
-              <div className="panel-heading"><div><span className="section-kicker">Répartition</span><h2>Qualification des actions</h2></div><span className="microcopy">Une ligne peut avoir plusieurs qualifications</span></div>
+              <div className="panel-heading"><div><span className="section-kicker">Répartition</span><h2>Types d’action proposés</h2></div><span className="microcopy">Une action peut relever de plusieurs types</span></div>
               <div className="bars">
                 {Object.entries(sourceData.sourceSummary.byQualification).sort((a, b) => b[1] - a[1]).map(([label, value]) => (
-                  <div className="bar-row" key={label}><span>{label}</span><div className="bar-track"><i style={{ width: `${Math.max(5, (value / maxQualification) * 100)}%` }} /></div><strong>{value}</strong></div>
+                  <div className="bar-row" key={label}><span>{label === "Non qualifié" ? "Type non renseigné" : label}</span><div className="bar-track"><i style={{ width: `${Math.max(5, (value / maxQualification) * 100)}%` }} /></div><strong>{value}</strong></div>
                 ))}
               </div>
             </article>
@@ -201,7 +200,7 @@ export default function Home() {
                 {Object.entries(sourceData.sourceSummary.vendors).map(([name, values]) => (
                   <button key={name} onClick={() => { setVendor(name); setTab("actions"); }}>
                     <span className={vendorClass(name)} />
-                    <span><strong>{name}</strong><small>{values.parcours} parcours</small></span>
+                    <span><strong>{name}</strong><small>{values.qualifiedParcours}/{values.parcours} parcours qualifiés</small></span>
                     <b>{values.actions}</b><em>actions</em>
                   </button>
                 ))}
@@ -211,22 +210,22 @@ export default function Home() {
             <article className="panel attention-panel">
               <div className="panel-heading"><div><span className="section-kicker">À traiter en priorité</span><h2>Points de contrôle</h2></div></div>
               <div className="attention-list">
-                <button onClick={() => { setQualification("Non qualifié"); setTab("actions"); }}><span className="attention-number">23</span><span><strong>Qualification manquante</strong><small>Décider de l’entité responsable</small></span><b>→</b></button>
-                <button onClick={() => { setStatus("Non renseigné"); setTab("actions"); }}><span className="attention-number">279</span><span><strong>Statut non initialisé</strong><small>Lancer le workflow de suivi</small></span><b>→</b></button>
-                <button onClick={() => setTab("parcours")}><span className="attention-number">14</span><span><strong>Parcours sans planification</strong><small>Les dates réalisées existent, pas les dates prévues</small></span><b>→</b></button>
+                <button onClick={() => { setRouteQualification("À reprogrammer"); setTab("parcours"); }}><span className="attention-number">{sourceData.sourceSummary.unqualifiedParcours}</span><span><strong>Parcours à reprogrammer</strong><small>Aucun DT2 enregistré après le DT initial</small></span><b>→</b></button>
+                <button onClick={() => { setQualification("Non qualifié"); setTab("actions"); }}><span className="attention-number">{sourceData.sourceSummary.detailedActions - sourceData.sourceSummary.actionsWithQualification}</span><span><strong>Type d’action manquant</strong><small>Identifier l’entité responsable</small></span><b>→</b></button>
+                <button onClick={() => { setStatus("Non renseigné"); setTab("actions"); }}><span className="attention-number">{sourceData.sourceSummary.actionsWithoutWorkflowStatus}</span><span><strong>Statut non initialisé</strong><small>Lancer le workflow de suivi</small></span><b>→</b></button>
               </div>
             </article>
-          </div>
+          </div></>
         )}
 
         {tab === "parcours" && (
           <article className="panel table-panel">
-            <div className="panel-heading"><div><span className="section-kicker">Réalisation terrain</span><h2>{filteredParcours.length} parcours affichés</h2></div><span className="legend"><i className="legend-good" /> Mesuré</span></div>
-            <div className="table-scroll"><table><thead><tr><th>Parcours</th><th>Équipementier</th><th>Date réalisée</th><th>Voix libre</th><th>VoLTE</th><th>Data</th><th>Déclarés</th><th>Détaillés</th><th>Écart</th></tr></thead>
+            <div className="panel-heading"><div><span className="section-kicker">Réalisation terrain</span><h2>{filteredParcours.length} parcours affichés</h2></div><span className="legend"><i className="legend-good" /> DT2 qualifie DT1</span></div>
+            <div className="table-scroll"><table><thead><tr><th>Parcours</th><th>Équipementier</th><th>DT1</th><th>DT2 · qualification</th><th>Dernier passage</th><th>Passages</th><th>Statut</th><th>Déclarés</th><th>Détaillés</th><th>Écart</th></tr></thead>
               <tbody>{filteredParcours.map((item) => <tr key={item.id}>
                 <td><strong>{item.highway}</strong><small>{item.mappingMycom || "Mapping non renseigné"}</small></td>
-                <td><span className={vendorClass(item.vendor)} />{item.vendor}</td><td>{formatDate(item.measurementDate)}</td>
-                <td>{item.voiceFree.cuts + item.voiceFree.failures + item.voiceFree.degradations}</td><td>{item.volte.cuts + item.volte.failures + item.volte.degradations}</td><td>{item.dataFree.degradations}</td>
+                <td><span className={vendorClass(item.vendor)} />{item.vendor}</td><td><strong>{formatDate(item.firstMeasurementDate)}</strong></td><td>{item.qualificationDate ? <strong className="qualified-date">{formatDate(item.qualificationDate)}</strong> : <span className="muted">En attente de DT2</span>}</td><td>{formatDate(item.latestMeasurementDate)}</td><td><b>{item.passCount}</b></td>
+                <td><span className={item.qualificationStatus === "Qualifié" ? "route-status route-qualified" : "route-status route-pending"}>{item.qualificationStatus}</span></td>
                 <td><b>{item.declaredAnomalies}</b></td><td><b>{item.detailedItems}</b></td><td><span className={item.detailGap === 0 ? "gap gap-zero" : "gap"}>{item.detailGap > 0 ? "+" : ""}{item.detailGap}</span></td>
               </tr>)}</tbody>
             </table></div>
@@ -235,13 +234,13 @@ export default function Home() {
 
         {tab === "actions" && (
           <article className="panel table-panel actions-panel">
-            <div className="panel-heading"><div><span className="section-kicker">Pilotage opérationnel</span><h2>{filteredActions.length} actions affichées</h2></div><span className="microcopy">Cliquer une ligne pour qualifier et suivre</span></div>
-            <div className="table-scroll"><table><thead><tr><th>Référence</th><th>Parcours / cellule</th><th>Problème</th><th>Qualification</th><th>Statut</th><th>Responsable</th><th>Échéance</th></tr></thead>
+            <div className="panel-heading"><div><span className="section-kicker">Pilotage opérationnel</span><h2>{filteredActions.length} actions affichées</h2></div><span className="microcopy">Cliquer une ligne pour documenter et suivre</span></div>
+            <div className="table-scroll"><table><thead><tr><th>Référence</th><th>Parcours / cellule</th><th>Problème</th><th>Type d’action</th><th>Statut</th><th>Responsable</th><th>Échéance</th></tr></thead>
               <tbody>{filteredActions.slice(0, visibleRows).map((item) => <tr key={item.id} onClick={() => { setSelectedId(item.id); setSaveState("idle"); }} className="clickable">
                 <td><strong className="ref">{item.id}</strong><small>{formatDate(item.measurementDate)}</small></td>
                 <td><strong>{item.highway}</strong><small>{item.servingCell || "Cellule non renseignée"}</small></td>
                 <td><span className="issue">{item.issueFamilies[0] || "À catégoriser"}</span><small>{item.issueNature}</small></td>
-                <td><div className="chips">{(item.qualifications.length ? item.qualifications : ["Non qualifié"]).slice(0, 2).map((label) => <span key={label}>{label}</span>)}</div></td>
+                <td><div className="chips">{(item.qualifications.length ? item.qualifications : ["Type non renseigné"]).slice(0, 2).map((label) => <span key={label}>{label}</span>)}</div></td>
                 <td><span className={statusClass(item.workflow.status)}>{item.workflow.status}</span></td>
                 <td>{item.workflow.owner || <span className="muted">À affecter</span>}</td><td>{formatDate(item.workflow.dueDate)}</td>
               </tr>)}</tbody>
