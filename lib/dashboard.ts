@@ -14,6 +14,7 @@ export type SituationAction = (typeof sourceData.situationActions)[number];
 export type SituationAnomaly = (typeof sourceData.situationAnomalies)[number];
 export type Parcours = (typeof sourceData.parcours)[number];
 export type DetailedAction = (typeof sourceData.actions)[number];
+export type DashboardSource = typeof sourceData;
 
 export type SituationDashboardView = {
   actions: SituationAction[];
@@ -63,17 +64,17 @@ function baseMatch(item: { vendor: string; highway: string; testFamily?: string 
     && (filters.measurementType === "Tous" || item.testFamily === filters.measurementType);
 }
 
-export function filterSituationActions(filters: DashboardFilters) {
-  return sourceData.situationActions.filter((item) => baseMatch(item, filters)
+export function filterSituationActions(filters: DashboardFilters, data: DashboardSource = sourceData) {
+  return data.situationActions.filter((item) => baseMatch(item, filters)
     && (filters.responsibility === "Tous" || item.responsibility === filters.responsibility));
 }
 
-export function filterSituationAnomalies(filters: DashboardFilters) {
-  return sourceData.situationAnomalies.filter((item) => baseMatch(item, filters));
+export function filterSituationAnomalies(filters: DashboardFilters, data: DashboardSource = sourceData) {
+  return data.situationAnomalies.filter((item) => baseMatch(item, filters));
 }
 
-export function filterParcours(filters: DashboardFilters) {
-  return sourceData.parcours.filter((item) => (filters.vendor === "Tous" || item.vendor === filters.vendor)
+export function filterParcours(filters: DashboardFilters, data: DashboardSource = sourceData) {
+  return data.parcours.filter((item) => (filters.vendor === "Tous" || item.vendor === filters.vendor)
     && (filters.highway === "Tous" || item.highway === filters.highway));
 }
 
@@ -81,10 +82,10 @@ function total<T extends { count: number }>(items: T[]) {
   return items.reduce((sum, item) => sum + item.count, 0);
 }
 
-export function buildDashboardView(filters: DashboardFilters): SituationDashboardView {
-  const actions = filterSituationActions(filters);
-  const anomalies = filterSituationAnomalies(filters);
-  const parcours = filterParcours(filters);
+export function buildDashboardView(filters: DashboardFilters, data: DashboardSource = sourceData): SituationDashboardView {
+  const actions = filterSituationActions(filters, data);
+  const anomalies = filterSituationAnomalies(filters, data);
+  const parcours = filterParcours(filters, data);
   const responsibilityTotals: Record<string, number> = {};
   for (const item of actions) responsibilityTotals[item.responsibility] = (responsibilityTotals[item.responsibility] ?? 0) + item.count;
 
@@ -169,21 +170,21 @@ function detailedMeasurementMatches(testType: string, measurementType: string) {
   return testType === measurementType;
 }
 
-export function buildSituationDrilldown(filters: DashboardFilters, responsibility: string, measurementType: string): SituationDrilldown {
-  const rows = sourceData.situationActions.filter((item) => baseMatch(item, {
+export function buildSituationDrilldown(filters: DashboardFilters, responsibility: string, measurementType: string, data: DashboardSource = sourceData): SituationDrilldown {
+  const rows = data.situationActions.filter((item) => baseMatch(item, {
     ...filters,
     measurementType: measurementType as MeasurementType,
   }) && item.responsibility === responsibility);
   const routeKeys = new Set(rows.map((item) => `${item.vendor}|${item.highway}`));
   const responsibilityParts = responsibility.split(" + ");
-  const detailedActions = sourceData.actions.filter((item) => routeKeys.has(`${item.vendor}|${item.highway}`)
+  const detailedActions = data.actions.filter((item) => routeKeys.has(`${item.vendor}|${item.highway}`)
     && detailedMeasurementMatches(item.testType, measurementType)
     && responsibilityParts.every((part) => (item.qualifications as string[]).includes(part)));
   return { responsibility, measurementType, rows, situationTotal: total(rows), detailedActions };
 }
 
-export function latestMeasurementDate() {
-  return sourceData.parcours.reduce((latest, item) => item.latestMeasurementDate > latest ? item.latestMeasurementDate : latest, "");
+export function latestMeasurementDate(data: DashboardSource = sourceData) {
+  return data.parcours.reduce((latest, item) => item.latestMeasurementDate > latest ? item.latestMeasurementDate : latest, "");
 }
 
 export function dashboardFilterCount(filters: DashboardFilters) {

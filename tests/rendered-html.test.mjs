@@ -92,9 +92,21 @@ test("dashboard implementation exposes cross filters and Situation drill-down", 
   assert.match(page, /responsibilityBreakdown/);
   assert.match(page, /applyOperationalScope/);
   assert.match(page, /aria-label="Filtres du dashboard"/);
+  assert.match(page, /Importer Excel/);
+  assert.match(page, /importDtWorkbooks/);
+  assert.match(page, /← Précédent/);
   assert.match(dashboard, /export type DashboardFilters/);
   assert.match(dashboard, /export type SituationDashboardView/);
   assert.match(dashboard, /export function buildDashboardView/);
   assert.match(dashboard, /export function buildSituationDrilldown/);
   assert.match(dashboard, /operationalSummary/);
+});
+
+test("Excel import implementation preserves Situation as the operational source", async () => {
+  const importer = await readFile(new URL("lib/dt-import.ts", projectRoot), "utf8");
+  assert.match(importer, /sheet_to_json/);
+  assert.match(importer, /Situation introuvable/);
+  assert.match(importer, /qualificationDate = sequence\.find/);
+  assert.match(importer, /header\.includes\("degrad"\) \|\| header\.includes\("coupure"\) \|\| header\.includes\("echec"\)/);
+  assert.match(importer, /situationActions\.push/);
 });

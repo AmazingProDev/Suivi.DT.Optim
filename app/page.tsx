@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import sourceData from "../lib/source-data.json";
+import type { ImportedDataset } from "../lib/dt-import";
 import {
   buildDashboardView,
   buildSituationDrilldown,
@@ -10,6 +11,7 @@ import {
   latestMeasurementDate,
   MEASUREMENT_TYPES,
   type DashboardFilters,
+  type DashboardSource,
   type MeasurementType,
   type SituationDrilldown,
   type Vendor,
@@ -17,14 +19,11 @@ import {
 
 type Tab = "synthese" | "parcours" | "actions";
 type Workflow = { status: string; priority: string; owner: string; dueDate: string; validation: string; note?: string; updatedAt?: string };
-type ActionItem = (typeof sourceData.actions)[number] & { workflow: Workflow };
+type ActionItem = DashboardSource["actions"][number] & { workflow: Workflow };
 
 const statusOptions = ["Non renseigné", "À lancer", "En cours", "Bloquée", "Terminée", "Validée"];
 const priorityOptions = ["À évaluer", "Basse", "Moyenne", "Haute", "Critique"];
 const validationOptions = ["Non renseignée", "À valider", "Rejetée", "Validée"];
-const vendors: Vendor[] = ["Tous", "Nokia", "Ericsson", "Huawei"];
-const highways = [...new Set(sourceData.parcours.map((item) => item.highway))].sort((a, b) => a.localeCompare(b, "fr"));
-const responsibilities = [...new Set(sourceData.situationActions.map((item) => item.responsibility))].sort((a, b) => a.localeCompare(b, "fr"));
 
 function formatDate(value: string) {
   if (!value) return "—";
@@ -62,6 +61,15 @@ export default function Home() {
   const [visibleRows, setVisibleRows] = useState(40);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [persistenceReady, setPersistenceReady] = useState(true);
+  const [importedData, setImportedData] = useState<ImportedDataset | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const activeData: DashboardSource = importedData ?? sourceData;
+  const vendors: Vendor[] = ["Tous", ...[...new Set(activeData.parcours.map((item) => item.vendor))].sort((a, b) => a.localeCompare(b, "fr"))] as Vendor[];
+  const highways = [...new Set(activeData.parcours.map((item) => item.highway))].sort((a, b) => a.localeCompare(b, "fr"));
+  const responsibilities = [...new Set(activeData.situationActions.map((item) => item.responsibility))].sort((a, b) => a.localeCompare(b, "fr"));
 
   useEffect(() => {
     fetch("/api/actions").then(async (response) => {
@@ -71,9 +79,9 @@ export default function Home() {
     }).catch(() => setPersistenceReady(false));
   }, []);
 
-  const dashboard = useMemo(() => buildDashboardView(filters), [filters]);
+  const dashboard = useMemo(() => buildDashboardView(filters, activeData), [filters, activeData]);
   const activeFilterCount = dashboardFilterCount(filters);
-  const actions = useMemo<ActionItem[]>(() => sourceData.actions.map((item) => ({ ...item, workflow: updates[item.id] ?? item.workflow })), [updates]);
+  const actions = useMemo<ActionItem[]>(() => activeData.actions.map((item) => ({ ...item, workflow: updates[item.id] ?? item.workflow })), [activeData, updates]);
   const filteredActions = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("fr");
     return actions.filter((item) => (filters.vendor === "Tous" || item.vendor === filters.vendor)
@@ -82,13 +90,13 @@ export default function Home() {
       && (!drillActionIds || drillActionIds.has(item.id))
       && (!query || `${item.id} ${item.highway} ${item.servingCell} ${item.issueNature} ${item.action}`.toLocaleLowerCase("fr").includes(query)));
   }, [actions, drillActionIds, filters.vendor, qualification, search, status]);
-  const filteredParcours = useMemo(() => sourceData.parcours.filter((item) => {
+  const filteredParcours = useMemo(() => activeData.parcours.filter((item) => {
     const query = search.trim().toLocaleLowerCase("fr");
     return (filters.vendor === "Tous" || item.vendor === filters.vendor)
       && (filters.highway === "Tous" || item.highway === filters.highway)
       && (routeQualification === "Tous" || item.qualificationStatus === routeQualification)
       && (!query || `${item.highway} ${item.mappingMycom}`.toLocaleLowerCase("fr").includes(query));
-  }), [filters.highway, filters.vendor, routeQualification, search]);
+  }), [activeData, filters.highway, filters.vendor, routeQualification, search]);
   const selected = selectedId ? actions.find((item) => item.id === selectedId) ?? null : null;
   const maxResponsibility = Math.max(1, ...dashboard.responsibilities.map((item) => item.value));
   const maxComparison = Math.max(1, ...dashboard.measurementSeries.flatMap((item) => [item.anomalies, item.assignments]));
@@ -112,7 +120,7 @@ export default function Home() {
   }
 
   function openSituationCell(responsibility: string, measurementType: string) {
-    setSituationDrilldown(buildSituationDrilldown(filters, responsibility, measurementType));
+    setSituationDrilldown(buildSituationDrilldown(filters, responsibility, measurementType, activeData));
   }
 
   function applyOperationalScope(row: { vendor: string; highway: string; measurementType: string }, responsibility = "Tous") {
@@ -126,6 +134,7 @@ export default function Home() {
 
   async function saveWorkflow(next: Workflow) {
     if (!selected) return;
+    if (importedData) { setSaveState("error"); return; }
     setSaveState("saving"); setUpdates((current) => ({ ...current, [selected.id]: next }));
     try {
       const response = await fetch("/api/actions", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceId: selected.id, ...next }) });
@@ -143,14 +152,31 @@ export default function Home() {
     const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" })); link.download = "suivi-actions-parcours.csv"; link.click(); URL.revokeObjectURL(link.href);
   }
 
+  async function handleImport(files: FileList | null) {
+    if (!files?.length) return;
+    setImportBusy(true); setImportError("");
+    try {
+      const { importDtWorkbooks } = await import("../lib/dt-import");
+      const imported = await importDtWorkbooks([...files]);
+      setImportedData(imported); setUpdates({}); setFilters(EMPTY_DASHBOARD_FILTERS); setSearch(""); setDrillActionIds(null); setTab("synthese"); setImportOpen(false);
+    } catch (error) { setImportError(error instanceof Error ? error.message : "Import impossible. Vérifiez les fichiers Excel."); }
+    finally { setImportBusy(false); if (fileInput.current) fileInput.current.value = ""; }
+  }
+
+  function goBack() {
+    if (selectedId) { setSelectedId(null); return; }
+    if (situationDrilldown) { setSituationDrilldown(null); return; }
+    setDrillActionIds(null); setSearch(""); setTab("synthese");
+  }
+
   return <main>
     <header className="topbar">
       <div className="brand"><span className="brand-mark">DT</span><div><strong>Suivi Parcours</strong><span>Mesures & actions réseau</span></div></div>
-      <div className="topbar-actions"><span className="source-pill"><span className="live-dot" /> 3 sources consolidées</span><button className="button button-secondary" onClick={exportCsv}>Exporter</button></div>
+      <div className="topbar-actions"><span className="source-pill"><span className="live-dot" /> {importedData ? `${importedData.importSummary.files.length} fichier${importedData.importSummary.files.length > 1 ? "s" : ""} importé${importedData.importSummary.files.length > 1 ? "s" : ""}` : "3 sources consolidées"}</span><button className="button button-secondary" onClick={() => { setImportError(""); setImportOpen(true); }}>Importer Excel</button><button className="button button-secondary" onClick={exportCsv}>Exporter</button></div>
     </header>
 
     <section className="command-header shell">
-      <div><p className="eyebrow">Pilotage qualité réseau · Autoroutes</p><h1>Tableau de bord opérationnel</h1><p>Dernière mesure <strong>{formatDate(latestMeasurementDate())}</strong> · Qualification par second passage du même parcours</p></div>
+      <div><p className="eyebrow">Pilotage qualité réseau · Autoroutes</p><h1>Tableau de bord opérationnel</h1><p>Dernière mesure <strong>{formatDate(latestMeasurementDate(activeData))}</strong> · Qualification par second passage du même parcours</p>{importedData && <p className="import-status">Données importées : {importedData.importSummary.files.join(" · ")} <button onClick={() => { setImportedData(null); setFilters(EMPTY_DASHBOARD_FILTERS); }}>Revenir aux données initiales</button></p>}</div>
       <button className="button button-primary" onClick={() => { setDrillActionIds(null); setTab("actions"); }}>Piloter les actions <span>→</span></button>
     </section>
 
@@ -207,8 +233,8 @@ export default function Home() {
             <div className="panel-heading"><div><span className="section-kicker">À traiter maintenant</span><h2>Priorités opérationnelles</h2></div></div>
             <div className="priority-list">
               <button onClick={() => openParcours("À reprogrammer")}><span className="priority-number priority-critical">{dashboard.pending}</span><span><strong>Parcours à reprogrammer</strong><small>Aucun DT2 qualifiant après le premier passage</small></span><b>→</b></button>
-              <button onClick={() => { setQualification("Non qualifié"); setDrillActionIds(null); setTab("actions"); }}><span className="priority-number">{sourceData.sourceSummary.detailedActions - sourceData.sourceSummary.actionsWithQualification}</span><span><strong>Type d’action manquant</strong><small>Actions détaillées à catégoriser</small></span><b>→</b></button>
-              <button onClick={() => { setStatus("Non renseigné"); setDrillActionIds(null); setTab("actions"); }}><span className="priority-number">{sourceData.sourceSummary.actionsWithoutWorkflowStatus}</span><span><strong>Workflow non initialisé</strong><small>Responsable et échéance à définir</small></span><b>→</b></button>
+              <button onClick={() => { setQualification("Non qualifié"); setDrillActionIds(null); setTab("actions"); }}><span className="priority-number">{activeData.sourceSummary.detailedActions - activeData.sourceSummary.actionsWithQualification}</span><span><strong>Type d’action manquant</strong><small>Actions détaillées à catégoriser</small></span><b>→</b></button>
+              <button onClick={() => { setStatus("Non renseigné"); setDrillActionIds(null); setTab("actions"); }}><span className="priority-number">{activeData.sourceSummary.actionsWithoutWorkflowStatus}</span><span><strong>Workflow non initialisé</strong><small>Responsable et échéance à définir</small></span><b>→</b></button>
             </div>
             <div className="quality-note"><span>i</span><p><strong>Lecture correcte :</strong> anomalies et affectations sont distinctes. Une anomalie peut être affectée à plusieurs responsabilités.</p></div>
           </article>
@@ -228,25 +254,28 @@ export default function Home() {
           </article>
         </div>
       </> : <>
+        <button className="back-button" onClick={goBack}>← Précédent</button>
         <div className="filterbar">
           <label className="searchbox"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => { setSearch(event.target.value); setVisibleRows(40); }} placeholder="Rechercher un axe, une cellule, un ID…" /></label>
           <label><span>Équipementier</span><select value={filters.vendor} onChange={(event) => updateFilter("vendor", event.target.value as Vendor)}>{vendors.map((item) => <option key={item}>{item}</option>)}</select></label>
-          {tab === "actions" ? <><label><span>Type d’action</span><select value={qualification} onChange={(event) => { setQualification(event.target.value); setVisibleRows(40); }}><option>Toutes</option>{Object.keys(sourceData.sourceSummary.byQualification).map((item) => <option key={item} value={item}>{item === "Non qualifié" ? "Type non renseigné" : item}</option>)}</select></label><label><span>Statut</span><select value={status} onChange={(event) => { setStatus(event.target.value); setVisibleRows(40); }}><option>Tous</option>{statusOptions.map((item) => <option key={item}>{item}</option>)}</select></label></> : <label><span>Qualification parcours</span><select value={routeQualification} onChange={(event) => setRouteQualification(event.target.value)}><option>Tous</option><option>Qualifié</option><option>À reprogrammer</option></select></label>}
+          {tab === "actions" ? <><label><span>Type d’action</span><select value={qualification} onChange={(event) => { setQualification(event.target.value); setVisibleRows(40); }}><option>Toutes</option>{Object.keys(activeData.sourceSummary.byQualification).map((item) => <option key={item} value={item}>{item === "Non qualifié" ? "Type non renseigné" : item}</option>)}</select></label><label><span>Statut</span><select value={status} onChange={(event) => { setStatus(event.target.value); setVisibleRows(40); }}><option>Tous</option>{statusOptions.map((item) => <option key={item}>{item}</option>)}</select></label></> : <label><span>Qualification parcours</span><select value={routeQualification} onChange={(event) => setRouteQualification(event.target.value)}><option>Tous</option><option>Qualifié</option><option>À reprogrammer</option></select></label>}
         </div>
-        {!persistenceReady && <div className="notice notice-warning"><strong>Suivi en lecture seule.</strong> Les données source restent disponibles; l’enregistrement du workflow sera actif après initialisation de la base.</div>}
+        {(!persistenceReady || importedData) && <div className="notice notice-warning"><strong>Suivi en lecture seule.</strong> {importedData ? "Les données Excel importées sont analysées dans cette session ; l’enregistrement du workflow D1 est réservé aux données initiales." : "Les données source restent disponibles; l’enregistrement du workflow sera actif après initialisation de la base."}</div>}
         {tab === "parcours" && <article className="panel table-panel"><div className="panel-heading"><div><span className="section-kicker">Réalisation terrain</span><h2>{filteredParcours.length} parcours affichés</h2></div><span className="legend"><i className="legend-good" /> DT2 qualifie le même parcours</span></div><div className="table-scroll"><table><thead><tr><th>Parcours</th><th>Équipementier</th><th>DT1</th><th>DT2 · qualification</th><th>Dernier passage</th><th>Passages</th><th>Statut</th><th>Déclarés</th><th>Détaillés</th><th>Écart</th></tr></thead><tbody>{filteredParcours.map((item) => <tr key={item.id}><td><strong>{item.highway}</strong><small>{item.mappingMycom || "Mapping non renseigné"}</small></td><td><span className={vendorClass(item.vendor)} />{item.vendor}</td><td><strong>{formatDate(item.firstMeasurementDate)}</strong></td><td>{item.qualificationDate ? <strong className="qualified-date">{formatDate(item.qualificationDate)}</strong> : <span className="muted">En attente de DT2</span>}</td><td>{formatDate(item.latestMeasurementDate)}</td><td><b>{item.passCount}</b></td><td><span className={item.qualificationStatus === "Qualifié" ? "route-status route-qualified" : "route-status route-pending"}>{item.qualificationStatus}</span></td><td><b>{item.declaredAnomalies}</b></td><td><b>{item.detailedItems}</b></td><td><span className={item.detailGap === 0 ? "gap gap-zero" : "gap"}>{item.detailGap > 0 ? "+" : ""}{item.detailGap}</span></td></tr>)}</tbody></table></div></article>}
         {tab === "actions" && <article className="panel table-panel actions-panel"><div className="panel-heading"><div><span className="section-kicker">Pilotage opérationnel</span><h2>{filteredActions.length} actions détaillées affichées</h2></div><div className="panel-tools">{drillActionIds && <button className="clear-drill" onClick={() => setDrillActionIds(null)}>Retirer le drill-down ×</button>}<span className="microcopy">Cliquer une ligne pour documenter</span></div></div><div className="table-scroll"><table><thead><tr><th>Référence</th><th>Parcours / cellule</th><th>Problème</th><th>Type d’action</th><th>Statut</th><th>Responsable</th><th>Échéance</th></tr></thead><tbody>{filteredActions.slice(0, visibleRows).map((item) => <tr key={item.id} onClick={() => { setSelectedId(item.id); setSaveState("idle"); }} className="clickable"><td><strong className="ref">{item.id}</strong><small>{formatDate(item.measurementDate)}</small></td><td><strong>{item.highway}</strong><small>{item.servingCell || "Cellule non renseignée"}</small></td><td><span className="issue">{item.issueFamilies[0] || "À catégoriser"}</span><small>{item.issueNature}</small></td><td><div className="chips">{(item.qualifications.length ? item.qualifications : ["Type non renseigné"]).slice(0, 2).map((label) => <span key={label}>{label}</span>)}</div></td><td><span className={statusClass(item.workflow.status)}>{item.workflow.status}</span></td><td>{item.workflow.owner || <span className="muted">À affecter</span>}</td><td>{formatDate(item.workflow.dueDate)}</td></tr>)}</tbody></table></div>{visibleRows < filteredActions.length && <button className="load-more" onClick={() => setVisibleRows((value) => value + 40)}>Afficher 40 lignes supplémentaires</button>}</article>}
       </>}
     </section>
 
-    {situationDrilldown && <div className="drawer-backdrop"><aside className="drawer situation-drawer" role="dialog" aria-modal="true" aria-label="Détail Situation"><div className="drawer-head"><div><span className="ref">SOURCE · SITUATION</span><h2>{situationDrilldown.responsibility}</h2><p>{situationDrilldown.measurementType} · {situationDrilldown.situationTotal} affectations</p></div><button className="icon-button" onClick={() => setSituationDrilldown(null)} aria-label="Fermer">×</button></div><div className="drawer-body">
+    {importOpen && <div className="drawer-backdrop import-backdrop"><section className="import-dialog" role="dialog" aria-modal="true" aria-labelledby="import-title"><div className="import-dialog-head"><div><span className="section-kicker">Mise à jour des données</span><h2 id="import-title">Importer les fichiers DT</h2><p>Sélectionnez un ou plusieurs fichiers Excel équipementier contenant la feuille <strong>Situation</strong>.</p></div><button className="icon-button" onClick={() => setImportOpen(false)} aria-label="Fermer">×</button></div><div className="import-dialog-body"><div className="import-steps"><span>1. Situation</span><span>2. Parcours & DT</span><span>3. Dégradations et responsabilités</span></div><input ref={fileInput} className="visually-hidden" id="dt-file-input" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" multiple onChange={(event) => handleImport(event.target.files)} /><label className="import-dropzone" htmlFor="dt-file-input"><b>{importBusy ? "Analyse des fichiers…" : "Choisir les fichiers Excel"}</b><span>Import multiple accepté · Nokia, Ericsson, Huawei</span></label>{importError && <div className="notice notice-warning">{importError}</div>}<p className="import-note">Les fichiers restent dans votre navigateur. L’import recalcule les DT1, DT2, qualifications, dégradations et affectations à partir de la feuille Situation.</p></div></section></div>}
+
+    {situationDrilldown && <div className="drawer-backdrop"><aside className="drawer situation-drawer" role="dialog" aria-modal="true" aria-label="Détail Situation"><div className="drawer-head"><div><span className="ref">SOURCE · SITUATION</span><h2>{situationDrilldown.responsibility}</h2><p>{situationDrilldown.measurementType} · {situationDrilldown.situationTotal} affectations</p></div><button className="drawer-back-button" onClick={goBack}>← Précédent</button><button className="icon-button" onClick={() => setSituationDrilldown(null)} aria-label="Fermer">×</button></div><div className="drawer-body">
       <section className="drill-summary"><div><span>Situation</span><strong>{situationDrilldown.situationTotal}</strong><small>affectations agrégées</small></div><div><span>Détail</span><strong>{situationDrilldown.detailedActions.length}</strong><small>actions correspondantes</small></div></section>
       {situationDrilldown.situationTotal !== situationDrilldown.detailedActions.length && <div className="notice notice-info"><strong>Deux niveaux de lecture.</strong> Le total Situation est agrégé; le détail provient des feuilles d’actions et peut différer.</div>}
       <section className="detail-section"><h3>Parcours et lignes source</h3><div className="source-rows">{situationDrilldown.rows.map((row) => <div key={`${row.sourceFile}-${row.sourceRow}-${row.sourceColumn}`}><span className={vendorClass(row.vendor)} /><span><strong>{row.highway}</strong><small>{formatDate(row.measurementDate)} · {row.vendor}</small></span><b>{row.count}</b><em>{row.sourceFile}<br />L{row.sourceRow} · C{row.sourceColumn}</em></div>)}</div></section>
       <button className="button button-primary drawer-action" disabled={!situationDrilldown.detailedActions.length} onClick={() => showDetailedActions(situationDrilldown)}>Voir {situationDrilldown.detailedActions.length} actions détaillées correspondantes →</button>
     </div></aside></div>}
 
-    {selected && <div className="drawer-backdrop"><aside className="drawer" role="dialog" aria-modal="true" aria-label={`Détail ${selected.id}`}><div className="drawer-head"><div><span className="ref">{selected.id}</span><h2>{selected.highway}</h2><p><span className={vendorClass(selected.vendor)} /> {selected.vendor} · {formatDate(selected.measurementDate)}</p></div><button className="icon-button" onClick={() => setSelectedId(null)} aria-label="Fermer">×</button></div><div className="drawer-body">
+    {selected && <div className="drawer-backdrop"><aside className="drawer" role="dialog" aria-modal="true" aria-label={`Détail ${selected.id}`}><div className="drawer-head"><div><span className="ref">{selected.id}</span><h2>{selected.highway}</h2><p><span className={vendorClass(selected.vendor)} /> {selected.vendor} · {formatDate(selected.measurementDate)}</p></div><button className="drawer-back-button" onClick={goBack}>← Précédent</button><button className="icon-button" onClick={() => setSelectedId(null)} aria-label="Fermer">×</button></div><div className="drawer-body">
       <section className="detail-section"><h3>Constat terrain</h3><dl><div><dt>Nature</dt><dd>{selected.issueNature || "—"}</dd></div><div><dt>Test</dt><dd>{selected.testType}</dd></div><div><dt>Cellule</dt><dd>{selected.servingCell || "—"}</dd></div><div><dt>Radio</dt><dd>{selected.signalLevel ?? "—"} dBm · SINR {selected.sinr ?? "—"}</dd></div></dl>{selected.description && <p className="narrative">{selected.description}</p>}</section>
       <section className="detail-section"><h3>Analyse & action proposées</h3><div className="analysis-box"><span>Analyse</span><p>{selected.analysis || "Non renseignée"}</p></div><div className="action-box"><span>Action</span><p>{selected.action || "Non renseignée"}</p></div></section>
       <section className="detail-section workflow-form"><div className="workflow-title"><h3>Pilotage de l’action</h3>{saveState === "saved" && <span className="saved">Enregistré</span>}{saveState === "error" && <span className="save-error">Non enregistré</span>}</div><div className="form-grid"><label><span>Statut</span><select value={selected.workflow.status} onChange={(event) => saveWorkflow({ ...selected.workflow, status: event.target.value })}>{statusOptions.map((item) => <option key={item}>{item}</option>)}</select></label><label><span>Priorité</span><select value={selected.workflow.priority} onChange={(event) => saveWorkflow({ ...selected.workflow, priority: event.target.value })}>{priorityOptions.map((item) => <option key={item}>{item}</option>)}</select></label><label><span>Responsable</span><input value={selected.workflow.owner} placeholder="Nom ou équipe" onChange={(event) => setUpdates((current) => ({ ...current, [selected.id]: { ...selected.workflow, owner: event.target.value } }))} onBlur={(event) => saveWorkflow({ ...selected.workflow, owner: event.target.value })} /></label><label><span>Échéance</span><input type="date" value={selected.workflow.dueDate} onChange={(event) => saveWorkflow({ ...selected.workflow, dueDate: event.target.value })} /></label><label className="full"><span>Validation</span><select value={selected.workflow.validation} onChange={(event) => saveWorkflow({ ...selected.workflow, validation: event.target.value })}>{validationOptions.map((item) => <option key={item}>{item}</option>)}</select></label><label className="full"><span>Note de suivi / preuve</span><textarea value={selected.workflow.note ?? ""} placeholder="Décision, blocage, lien vers une preuve…" onChange={(event) => setUpdates((current) => ({ ...current, [selected.id]: { ...selected.workflow, note: event.target.value } }))} onBlur={(event) => saveWorkflow({ ...selected.workflow, note: event.target.value })} /></label></div></section>
